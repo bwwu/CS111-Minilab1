@@ -135,6 +135,8 @@ interrupt(registers_t *reg)
 	// That code saves more registers on the kernel's stack, then calls
 	// interrupt().  The first thing we must do, then, is copy the saved
 	// registers into the 'current' process descriptor.
+	int32_t index;
+	process_t *cmp;
 	current->p_registers = *reg;
 
 	switch (reg->reg_intno) {
@@ -168,6 +170,25 @@ interrupt(registers_t *reg)
 		// before calling the system call.  The %eax REGISTER has
 		// changed by now, but we can read the APPLICATION's setting
 		// for this register out of 'current->p_registers'.
+		
+		// Search process array for a process that is waiting on the current	
+		for (index = 0; index < NPROCS; index++)
+		{
+			cmp =  proc_array+index;
+			// If there is a blocked process that is waiting on current
+			if (cmp->p_pid != current->p_pid)
+				if (cmp->p_state == P_BLOCKED)
+					if (cmp->p_registers.reg_eax == current->p_pid)
+					{
+						// Make the waiting process runnable, and give it exit_status
+						cmp->p_state = P_RUNNABLE; 	
+						cmp->p_registers.reg_eax = current->p_registers.reg_eax;
+						current->p_state = P_EMPTY;
+						schedule();
+					}
+		}
+		// If no process is waiting on current one, then set it to ZOMBIE
+		// and retain its exit status in eax
 		current->p_state = P_ZOMBIE;
 		current->p_exit_status = current->p_registers.reg_eax;
 		schedule();
@@ -189,7 +210,12 @@ interrupt(registers_t *reg)
 		else if (proc_array[p].p_state == P_ZOMBIE)
 			current->p_registers.reg_eax = proc_array[p].p_exit_status;
 		else
-			current->p_registers.reg_eax = WAIT_TRYAGAIN;
+		{
+			// Block the current process, by indicating it is waiting on 
+			// process p to finish by storing p in eax
+			current->p_registers.reg_eax = p;
+			current->p_state = P_BLOCKED;
+		}
 		schedule();
 	}
 
