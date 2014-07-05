@@ -1,15 +1,45 @@
-Name:
-UCLA ID:
+Name: 	Brandon Wu
+UCLA ID:	603-859-458
 
-
--------------------------------------------------------------------------------
-
+---------------------------------------------------------------------------
 Response to Exercise 1:
 
+	Replacing the interrupt handler code for INT_SYS_GETPID with schedule()
+instead of run will have no effect on the output. The pid of of the current
+process is saved in that process's eax register.
 
+	Calling the schedule subroutine runs an arbitrary process that is 
+runnable, which would include the process that called the interrupt handler.
+The scheduler copies the appropriate registers which would include the pid
+saved in eax and then runs the process. 
 
+	Since the process register state is saved on system calls and that state
+is loaded before scheduling that process to run, the result will be the same.
+
+---------------------------------------------------------------------------
 Anything else you'd like us to know:
 
+  Blocking is implemented in the sys_wait interrupt handler code. If process
+"current" is waiting on a process that has already exited, this process
+state will be marked as "P_ZOMBIE" indicating that it exited but its exit
+status has not been consumed. In this case, the current process can safely
+read the exit status, but then must change that process state to "P_EMPTY".
+ 
+ If current is waiting on a process that has not completed, it changes its
+state to "P_BLOCKED", then assigns the pid of the proecss it is waiting on
+to its eax register. This is the key to determining when to wake up the
+current process. Finally, the interrupt handler calls the scheduler to 
+run a runnable process.
 
+SYS_EXIT:
+ When a process calls the sys_exit subroutine, the interrupt handler
+iterates over each process in the proc_array, if the process is marked
+as "P_BLOCKED" and its eax register matches that of exiting process, that
+process is unblocked. In this case, the exiting process is removed from
+proc_array marked as "P_EMPTY".
+
+ If there is no process that is blocked by the exiting process, then the
+status of this process is marked "P_ZOMBIE" to indicate that its exit
+status has not been consumed by any waiting process.
 
 Extra credit exercises:
