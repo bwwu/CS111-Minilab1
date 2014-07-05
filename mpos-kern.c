@@ -208,7 +208,10 @@ interrupt(registers_t *reg)
 		    || proc_array[p].p_state == P_EMPTY)
 			current->p_registers.reg_eax = -1;
 		else if (proc_array[p].p_state == P_ZOMBIE)
+		{
 			current->p_registers.reg_eax = proc_array[p].p_exit_status;
+			proc_array[p].p_state = P_EMPTY;
+		}
 		else
 		{
 			// Block the current process, by indicating it is waiting on 
